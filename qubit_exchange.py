@@ -51,16 +51,13 @@ class EndPoint:
 
     def receive_polarizations(self, polarizations):
         self._received_polarizations = polarizations
-        self._key = self.get_key(self._polarizations, self._received_polarizations, self._values)
+        self._key = XORCryptosystem.create_key(self._polarizations, self._received_polarizations, self._values)
 
     def send_polarizations(self, polarizations, end_point):
         end_point.receive_polarizations(polarizations)
 
-    def get_key(self, polarizations, received_polarizations, values):
-        return XORCryptosystem.create_key(polarizations, received_polarizations, values)
-
-    def print_key(self):
-        print(self._key)
+    def get_key(self):
+        return self._key
 
 class UnitTests(unittest.TestCase):
     def test_same_polarization(self, num_qubits):
@@ -85,12 +82,21 @@ class UnitTests(unittest.TestCase):
                self.assertTrue(len(msg) == len(expected_msg), "Transformed message not equal") 
         print("PASS")
 
+    def test_qke(self, num_qubits):
+        print("Performing QKE with {0} qubits and comparing key equality...".format(num_qubits))
+        transmitter = EndPoint()
+        receiver = EndPoint()
+        transmitter.send(num_qubits, receiver)
+        key_t, key_r = transmitter.get_key(), receiver.get_key()
+        self.assertTrue(len(key_t) == len(key_r), "Keys are not equal")
+        for i in range(0, len(key_t)):
+            self.assertTrue(key_t[i] == key_r[i], "Keys are not equal")
+        print("PASS")
+
 tests = UnitTests()
 tests.test_same_polarization(10000)
 tests.test_xor_transform(100,3)
-
-transmitter = EndPoint()
-receiver = EndPoint()
-transmitter.send(16, receiver)
-transmitter.print_key()
-receiver.print_key()
+tests.test_xor_transform(40,62)
+tests.test_qke(16)
+tests.test_qke(256)
+tests.test_qke(1024)
