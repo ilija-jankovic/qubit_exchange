@@ -38,6 +38,7 @@ class XORCryptosystem:
 
 class EndPoint:
     def receive(self, qubits, end_point):
+        self._received_qubits = qubits
         self._polarizations = [random.randint(0,1) for i in range(0, len(qubits))]
         self._values = [qubits[i].measure(self._polarizations[i]) for i in range(0,len(qubits))]
         self.send_polarizations(self._polarizations, end_point)
@@ -58,6 +59,12 @@ class EndPoint:
 
     def get_key(self):
         return self._key
+
+    def get_received_polarizations(self):
+        return self._received_polarizations
+
+    def get_received_qubits(self):
+        return self._received_qubits
 
 class UnitTests(unittest.TestCase):
     def test_same_polarization(self, num_qubits):
@@ -100,3 +107,40 @@ tests.test_xor_transform(40,62)
 tests.test_qke(16)
 tests.test_qke(256)
 tests.test_qke(1024)
+
+class ManInTheMiddle:
+    def __init__(self, polarizations_t, polarizations_r, qubits):
+        self._polarizations_t = polarizations_t
+        self._polarizations_r = polarizations_r
+        self._qubits = qubits
+
+    def crack_key(self):
+        key = []
+        for i in range(0, len(self._polarizations_t)):
+            if self._polarizations_t[i] == self._polarizations_r[i]:
+                key.append(self._qubits[i].measure(self._polarizations_t[i]))
+        return key
+
+transmitter = EndPoint()
+receiver = EndPoint()
+transmitter.send(16, receiver)
+middle = ManInTheMiddle(transmitter.get_received_polarizations(), \
+    receiver.get_received_polarizations(), receiver.get_received_qubits())
+
+msg = [i%2 for i in range(0,50)]
+ciphertext = msg.copy()
+XORCryptosystem.xor_transform(ciphertext, receiver.get_key())
+
+cracked_key = middle.crack_key()
+cracked_msg = ciphertext.copy()
+XORCryptosystem.xor_transform(cracked_msg, cracked_key)
+
+def int_list_to_str(list):
+    return ''.join(map(str,list))
+
+print("Man in the middle scenario:")
+print("Message =", int_list_to_str(msg))
+print("QKE key =", int_list_to_str(receiver.get_key()))
+print("Ciphertext =", int_list_to_str(ciphertext))
+print("Cracked key =", int_list_to_str(cracked_key))
+print("Cracked message =", int_list_to_str(cracked_msg))
