@@ -1,6 +1,7 @@
 import random
 import unittest
 
+#Quantum replacement for bits.
 class Qubit:
     def __init__(self, value, polarization):
         self.set(value, polarization)
@@ -22,12 +23,15 @@ class Qubit:
     def get_polarization(self):
         return self._polarization
 
+#Static methods for QKE and XOR cryptography.
 class XORCryptosystem:
+    #XOR bits of message and key. If the message is longer than the key, loop around with modulo.
     @staticmethod
     def xor_transform(msg, key):
         for i in range(0, len(msg)):
             msg[i] ^= key[i%len(key)]
 
+    #Append values to key for which polarizations match
     @staticmethod
     def create_key(polarizations1, polarizations2, values):
         key = []
@@ -36,6 +40,7 @@ class XORCryptosystem:
                 key.append(values[i])
         return key
 
+#The transmitters and receivers of QKE.
 class EndPoint:
     def receive(self, qubits, end_point):
         self._received_qubits = qubits
@@ -43,6 +48,7 @@ class EndPoint:
         self._values = [qubits[i].measure(self._polarizations[i]) for i in range(0,len(qubits))]
         self.send_polarizations(self._polarizations, end_point)
 
+    #Starts a chain reaction of sending qubits and sending/receiving polarizations to form symmetric keys.
     def send(self, num_qubits, end_point):
         self._polarizations = [random.randint(0,1) for i in range(0, num_qubits)]
         self._values = [random.randint(0,1) for i in range(0, num_qubits)] 
@@ -57,6 +63,8 @@ class EndPoint:
     def send_polarizations(self, polarizations, end_point):
         end_point.receive_polarizations(polarizations)
 
+    #Getter functions used for unit tests and man-in-the-middle scenario.
+
     def get_key(self):
         return self._key
 
@@ -66,6 +74,7 @@ class EndPoint:
     def get_received_qubits(self):
         return self._received_qubits
 
+#Unit tests for qubits, XOR cryptosystem, and QKE with end hosts.
 class UnitTests(unittest.TestCase):
     def test_same_polarization(self, num_qubits):
         print("Measuring {0} qubits with same polarization for unchanged value...".format(num_qubits))
@@ -100,6 +109,7 @@ class UnitTests(unittest.TestCase):
             self.assertTrue(key_t[i] == key_r[i], "Keys are not equal")
         print("PASS")
 
+#A number of unit tests with different parameters.
 tests = UnitTests()
 tests.test_same_polarization(10000)
 tests.test_xor_transform(100,3)
@@ -108,12 +118,15 @@ tests.test_qke(16)
 tests.test_qke(256)
 tests.test_qke(1024)
 
+#Uses sent qubit and polarization data to crack a key and implied message.
 class ManInTheMiddle:
     def __init__(self, polarizations_t, polarizations_r, qubits):
         self._polarizations_t = polarizations_t
         self._polarizations_r = polarizations_r
         self._qubits = qubits
 
+    #If polarizations are the same, the value of the qubit must be the same as in the key if measured
+    #against the transmitter's polarization.
     def crack_key(self):
         key = []
         for i in range(0, len(self._polarizations_t)):
@@ -121,6 +134,7 @@ class ManInTheMiddle:
                 key.append(self._qubits[i].measure(self._polarizations_t[i]))
         return key
 
+#Man-in-the-middle attack scenario.
 transmitter = EndPoint()
 receiver = EndPoint()
 transmitter.send(16, receiver)
